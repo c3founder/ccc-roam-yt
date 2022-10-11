@@ -13,7 +13,11 @@ button.timestamp-control {
   padding-top: 10px !important;
 }
 
-.myCommentBtn {
+.rm-zoom-item-content .rm-xparser-default-ccc-yt-timestamp {
+  display: none;
+}
+
+/* .myCommentBtn {
   background-color: red;
   width: 400px;
   height: 400px;
@@ -25,4 +29,4 @@ button.timestamp-control {
 .myCommentBtn:hover {
   display: inline-block;
   position: relative;
-}
+} */

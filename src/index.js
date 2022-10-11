@@ -432,7 +432,7 @@ const sleep = m => new Promise(r => setTimeout(r, m))
 
 
 //Fill out the current block with the given text
-function fillTheBlock(perfixTxt) {
+async function fillTheBlock(perfixTxt) {
     let blockUid = document.querySelector("textarea.rm-block-input").id.slice(-9);
     let blockTxt = blockString(blockUid);
     let trail = blockTxt;
@@ -440,11 +440,9 @@ function fillTheBlock(perfixTxt) {
     if (match && match[0]) {
         trail = blockTxt.substring(46)
     }
-    updateBlockString(blockUid, perfixTxt + trail);
-    console.log('perfix', perfixTxt)
-    console.log('trail', trail)
+    await updateBlockString(blockUid, perfixTxt + trail);
     const len = (perfixTxt + trail).length
-    sleep(300)
+    // sleep(300)
     window.roamAlphaAPI.ui.setBlockFocusAndSelection(
         {
             location: window.roamAlphaAPI.ui.getFocusedBlock(),
@@ -464,7 +462,7 @@ const createUid = () => {
     return roamAlphaAPI.util.generateUID();
 }
 
-const updateBlockString = (blockUid, newString) => {
+const updateBlockString = async (blockUid, newString) => {
     return window.roamAlphaAPI.updateBlock({
         block: { uid: blockUid, string: newString }
     });
@@ -556,21 +554,23 @@ function activateNewTimeStamp(mutations) {
             if (node.nodeType === 1) { //check if this is an element (not text/char)
                 const btns = node.querySelectorAll('.rm-xparser-default-ccc-yt-timestamp')
                 for (let btn of btns) {
-                    const blockRefSpan = btn.closest('.rm-block-ref')
-                    let blockUid;
-                    if (!blockRefSpan) { //main
-                        blockUid = btn.closest('.rm-block__input').id.slice(-9)
-                    } else { //ref
-                        blockUid = blockRefSpan.dataset.uid
-                    }
-                    const btnBlockTxt = blockString(blockUid)
+                    if (!btn.closest('.rm-zoom')) {
+                        const blockRefSpan = btn.closest('.rm-block-ref')
+                        let blockUid;
+                        if (!blockRefSpan) { //main
+                            blockUid = btn.closest('.rm-block__input').id.slice(-9)
+                        } else { //ref
+                            blockUid = blockRefSpan.dataset.uid
+                        }
+                        const btnBlockTxt = blockString(blockUid)
 
-                    const match = btnBlockTxt.match(/{{\[\[ccc\-yt\-timestamp\]\]\:(.*)\(\((.*)\)\)}}/)
-                    if (match && match[1]) {
-                        btn.innerHTML = match[1];
-                        btn.addEventListener("click", (e) => { tsClick(e, match[1], match[2]) });
+                        const match = btnBlockTxt.match(/{{\[\[ccc\-yt\-timestamp\]\]\:(.*)\(\((.*)\)\)}}/)
+                        if (match && match[1]) {
+                            btn.innerHTML = match[1];
+                            btn.addEventListener("click", (e) => { tsClick(e, match[1], match[2]) });
+                        }
+                        btn.classList.add('timestamp-control');
                     }
-                    btn.classList.add('timestamp-control');
                 }
             }
         }
