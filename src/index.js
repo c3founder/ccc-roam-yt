@@ -1,4 +1,7 @@
 import Mousetrap from 'mousetrap';
+// import html2canvas from 'html2canvas';
+// import domtoimage from "dom-to-image-more";
+
 
 
 let ytParams = {};
@@ -115,7 +118,28 @@ const panelConfig = {
                 placeholder: 'alt+a l',
                 onChange: (evt) => { ytParams.forwardKey = evt.target.value; }
             }
+        },
+        {
+            id: "playFromTsKey",
+            name: "Play from Timestamp Shortkey",
+            description: "While typing in a block press this to start playing from the time stamp of the current block",
+            action: {
+                type: "input",
+                placeholder: 'alt+a ,',
+                onChange: (evt) => { ytParams.playFromTsKey = evt.target.value; }
+            }
         }
+        // ,
+        // {
+        //     id: "screenshotKey",
+        //     name: "Screenshot Shortkey",
+        //     description: "Take screen shot",
+        //     action: {
+        //         type: "input",
+        //         placeholder: 'alt+a s',
+        //         onChange: (evt) => { ytParams.screenshotKey = evt.target.value; }
+        //     }
+        // }
     ]
 };
 
@@ -133,6 +157,7 @@ function unbindShortkeys() {
     Mousetrap.unbind(ytParams.playPauseKey);
     Mousetrap.unbind(ytParams.backwardKey);
     Mousetrap.unbind(ytParams.forwardKey);
+    Mousetrap.unbind(ytParams.playFromTsKey);
     // Mousetrap.unbind(ytParams.screenshotKey);
 }
 
@@ -142,32 +167,73 @@ function bindShortkeys() {
     //Title
     Mousetrap.bind(ytParams.grabTitleKey, async function (e) {
         e.preventDefault()
-        if (e.srcElement.localName == "textarea") {
-            var container = e.srcElement.closest('.roam-block-container');
-            var parContainer = container.parentElement.closest('.roam-block-container');
-            var myIframe = parContainer.querySelector("iframe");
-            if (myIframe === null) return false;
-            var title = players.get(myIframe.id).getVideoData().title;
+
+        if (e.target.localName == "textarea") {
+            let playing = whatIsPlaying();
+            let title;
+            if (playing) { //if something is playing grab its title
+                title = playing.getVideoData().title;
+            } else { //otherwise: first youtube in my parent is the player
+                let container = e.target.closest('.roam-block-container');
+                let parContainer = container.parentElement.closest('.roam-block-container');
+                let myIframe = parContainer.querySelector("iframe");
+                if (myIframe === null) return false;
+                title = players.get(myIframe.id.slice(-9)).getVideoData().title;
+            }
             fillTheBlock("**" + title + "**");
         }
         return false;
     }, 'keydown');
+    //Play from TimeStamp
+    Mousetrap.bind(ytParams.playFromTsKey, async function (e) {
+        e.preventDefault()
+        let blockUid = e.target.closest('.rm-block__input').id.slice(-9)
+        const btnBlockTxt = blockString(blockUid)
+        const match = btnBlockTxt.match(/{{\[\[ccc\-yt\-timestamp\]\]\:(.*)\(\((.*)\)\)}}/)
+
+        if (match && match[1]) {
+            const tsString = match[1];
+            const matches = tsString.match(/(\d\d)\:(\d\d)\:(\d\d)/); // start w/ m:ss or h:mm:ss
+            let ts;
+            if (!matches || matches.length < 4) {
+                ts = 0;
+            } else {
+                ts = parseInt(matches[1]) * 3600 + parseInt(matches[2]) * 60 + parseInt(matches[3]);
+            }
+            const ytUid = match[2];
+            let player = players.get(ytUid)
+            if (!player) {
+                await openBlockInSidebar('block', ytUid)
+                await sleep(1500);
+            }
+            player = players.get(ytUid)
+            let playing = whatIsPlaying();
+            if (playing && playing != player)
+                playing.pauseVideo();
+            player.seekTo(ts, true)
+            player.playVideo();
+        }
+        return false;
+    }, 'keydown');
+
     //TimeStamp
     Mousetrap.bind(ytParams.grabTimeKey, async function (e) {
         e.preventDefault()
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
-            var timeStr = new Date(playing.getCurrentTime() * 1000).toISOString().substr(11, 8)
-            // fillTheBlock("{{[[ccc-yt-timestamp]]:" + timeStr + "}}");
-            fillTheBlock(timeStr);
+            let timeStr = new Date(playing.getCurrentTime() * 1000).toISOString().substring(11, 19)
+            fillTheBlock("{{[[ccc-yt-timestamp]]:" + timeStr + "((" + playing.getIframe().id.slice(-9) + "))}}");
+            // fillTheBlock(timeStr);
             return false;
         }
         return false;
     }, 'keydown');
+
     //Play-Pause
     Mousetrap.bind(ytParams.playPauseKey, async function (e) {
+        // console.log('players', players)
         e.preventDefault();
-        var playing = whatIsPlaying();
+        let playing = whatIsPlaying();
         //If something is playing => pause it
         if (playing !== null) {
             playing.pauseVideo();
@@ -192,38 +258,45 @@ function bindShortkeys() {
     }, 'keydown');
     //Screenshot
     // Mousetrap.bind(ytParams.screenshotKey, async function (e) {
-    //     console.log('fffff')
+    //     console.log('bbbbbbbb')
     //     e.preventDefault();
-    //     var playing = targetPlayer();
+    //     let playing = targetPlayer();
     //     if (playing !== null) {
     //         const iframe = playing.getIframe();
+    //         // domtoimage.toPng(iframe)
+    //         //     .then(function (dataUrl) {
+    //         //         var img = new Image();
+    //         //         img.src = dataUrl;
+    //         //         document.body.appendChild(img);
+    //         //     })
 
-    //         let canvas = document.createElement('canvas');
+    //         //             let canvas = document.createElement('canvas');
 
-    //         canvas.width = iframe.width;
-    //         canvas.height = iframe.height;
+    //         //             canvas.width = iframe.width;
+    //         //             canvas.height = iframe.height;
 
-    //         let ctx = canvas.getContext('2d');
-    //         ctx.drawImage(iframe.parentElement, 0, 0, canvas.width, canvas.height);
+    //         //             // let ctx = canvas.getContext('2d');
+    //         //             // ctx.drawImage(iframe.parentElement, 0, 0, canvas.width, canvas.height);
 
-    //         let url = canvas.toDataURL('image/jpeg');
-
-    //         // html2canvas(iframe.parentElement).then(async canvas => {
-    //             // const url = canvas.toDataURL('image/png');
-    //             console.log('this is the url ', url)
-    //             const imgFile = await fetch(url)
-    //                 .then(function (res) { return res.arrayBuffer(); })
-    //                 .then(function (buf) { return new File([buf], 'screenshot.png', { type: 'image/png' }); })
-    //             const screenShotUrl = await roamAlphaAPI.util.uploadFile({ file: imgFile });
-    //             const currentFocus = window.roamAlphaAPI.ui.getFocusedBlock()
-    //             const imageBlockUid = createUid();
-    //             createChildBlock(currentFocus['block-uid'], 0, screenShotUrl, imageBlockUid);
-    //             const emptyBlockUid = createUid();
-    //             createChildBlock(imageBlockUid, 0, '', emptyBlockUid);
-    //             window.roamAlphaAPI.ui.setBlockFocusAndSelection(
-    //                 {
-    //                     location: { 'block-uid': emptyBlockUid, 'window-id': currentFocus['window-id'] },
-    //                 })
+    //         //             // let url = canvas.toDataURL('image/jpeg');
+    //         // // const iframeBody = iframe.contentDocument.body
+    //         // // console.log(iframeBody)
+    //         //             html2canvas(iframe).then(async canvas => {
+    //         //                 const url = canvas.toDataURL('image/png');
+    //         //                 console.log('this is the url ', url)
+    //         //                 const imgFile = await fetch(url)
+    //         //                     .then(function (res) { return res.arrayBuffer(); })
+    //         //                     .then(function (buf) { return new File([buf], 'screenshot.png', { type: 'image/png' }); })
+    //         //                 const screenShotUrl = await roamAlphaAPI.util.uploadFile({ file: imgFile });
+    //         //                 const currentFocus = window.roamAlphaAPI.ui.getFocusedBlock()
+    //         //                 const imageBlockUid = createUid();
+    //         //                 createChildBlock(currentFocus['block-uid'], 0, screenShotUrl, imageBlockUid);
+    //         //                 const emptyBlockUid = createUid();
+    //         //                 createChildBlock(imageBlockUid, 0, '', emptyBlockUid);
+    //         //                 window.roamAlphaAPI.ui.setBlockFocusAndSelection(
+    //         //                     {
+    //         //                         location: { 'block-uid': emptyBlockUid, 'window-id': currentFocus['window-id'] },
+    //         //                     })
     //         // })
     //     }
     //     return false;
@@ -231,7 +304,7 @@ function bindShortkeys() {
     //Mute
     Mousetrap.bind(ytParams.muteKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
             if (playing.isMuted()) {
                 playing.unMute();
@@ -245,7 +318,7 @@ function bindShortkeys() {
     //Volume Up
     Mousetrap.bind(ytParams.volUpKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
             playing.setVolume(Math.min(playing.getVolume() + 10, 100))
             return false;
@@ -255,7 +328,7 @@ function bindShortkeys() {
     //Volume Down
     Mousetrap.bind(ytParams.volDownKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
             playing.setVolume(Math.max(playing.getVolume() - 10, 0))
             return false;
@@ -265,7 +338,7 @@ function bindShortkeys() {
     //Speed Up
     Mousetrap.bind(ytParams.speedUpKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
             playing.setPlaybackRate(Math.min(playing.getPlaybackRate() + 0.25, 2))
             return false;
@@ -275,7 +348,7 @@ function bindShortkeys() {
     //Speed Down
     Mousetrap.bind(ytParams.speedDownKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
             playing.setPlaybackRate(Math.max(playing.getPlaybackRate() - 0.25, 0))
             return false;
@@ -285,7 +358,7 @@ function bindShortkeys() {
     //Normal Speed
     Mousetrap.bind(ytParams.normalSpeedKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
             playing.setPlaybackRate(1, 0)
             return false;
@@ -295,9 +368,9 @@ function bindShortkeys() {
     //Move Forward
     Mousetrap.bind(ytParams.forwardKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
-            var duration = playing.getDuration();
+            let duration = playing.getDuration();
             playing.seekTo(Math.min(playing.getCurrentTime() + 10, duration), true)
             return false;
         }
@@ -306,9 +379,9 @@ function bindShortkeys() {
     //Move Backward
     Mousetrap.bind(ytParams.backwardKey, async function (e) {
         e.preventDefault();
-        var playing = targetPlayer();
+        let playing = targetPlayer();
         if (playing !== null) {
-            var duration = playing.getDuration();
+            let duration = playing.getDuration();
             playing.seekTo(Math.max(playing.getCurrentTime() - 10, 0), true)
             return false;
         }
@@ -333,7 +406,7 @@ function whatIsPlaying() {
 //Getting the first uncued player 
 function whatIsPresent() {
     for (let [playerId, player] of players) {
-        if (document.getElementById(playerId) === null) {
+        if (document.querySelector('iframe[id$="' + playerId + '"]') === null) {
             continue;
         }
         return player;
@@ -344,7 +417,7 @@ function whatIsPresent() {
 //Getting the target player
 //1)playing  or 2)most recent one or 3) the first one
 function targetPlayer() {
-    var playing = whatIsPlaying();
+    let playing = whatIsPlaying();
     if (playing !== null)
         return playing;
     if (paused !== null)
@@ -361,12 +434,21 @@ const sleep = m => new Promise(r => setTimeout(r, m))
 //Fill out the current block with the given text
 function fillTheBlock(perfixTxt) {
     let blockUid = document.querySelector("textarea.rm-block-input").id.slice(-9);
-    updateBlockString(blockUid, perfixTxt + " " + blockString(blockUid));
+    let blockTxt = blockString(blockUid);
+    let trail = blockTxt;
+    const match = blockTxt.match(/{{\[\[ccc\-yt\-timestamp\]\]\:........\(\(.........\)\)}}.*/)
+    if (match && match[0]) {
+        trail = blockTxt.substring(46)
+    }
+    updateBlockString(blockUid, perfixTxt + trail);
+    console.log('perfix', perfixTxt)
+    console.log('trail', trail)
+    const len = (perfixTxt + trail).length
     sleep(300)
     window.roamAlphaAPI.ui.setBlockFocusAndSelection(
         {
             location: window.roamAlphaAPI.ui.getFocusedBlock(),
-            selection: {start: 8, end: 8}
+            selection: { start: len, end: len }
         })
 }
 
@@ -407,13 +489,13 @@ function startC3YtExtension() {
                 if (ytEl.closest('.rm-zoom-item') !== null) {
                     return; //ignore breadcrumbs and page log            
                 }
-                const block = ytEl.closest('.roam-block-container');
+                // const block = ytEl.closest('.roam-block-container');
                 let frameId;
-                let newIframe = false;
+                // let newIframe = false;
                 if (!ytEl.classList.contains('yt-activated')) {
-                    var ytId = extractVideoID(ytEl.src);
+                    let ytId = extractVideoID(ytEl.src);
                     frameId = "yt-" + ytEl.closest('.roam-block').id;
-                    var ytWrapper = document.createElement('div');
+                    let ytWrapper = document.createElement('div');
                     ytWrapper.id = frameId;
                     ytEl.parentNode.insertBefore(ytWrapper, ytEl);
                     ytEl.remove()
@@ -421,66 +503,31 @@ function startC3YtExtension() {
                     let iframe = document.getElementById(frameId)
                     iframe.classList.add('rm-iframe', 'rm-video-player', 'yt-activated')
                     iframe.closest('div').classList.add('rm-iframe__container', 'rm-video-player__container', 'hoverparent')
-                    players.set(frameId, newYTEl);
+                    players.set(frameId.slice(-9), newYTEl);
 
                     const iframeWrapper = iframe.closest('.rm-iframe__spacing-wrapper')
                     const overlayButton = iframeWrapper?.querySelector('.rm-video-player__comment-button')
-                    overlayButton.style.visibility = 'hidden';
-                    newIframe = true;
-                } else {
-                    frameId = ytEl.id
+                    overlayButton.style.display = 'none';
+                    // let newDiv = overlayButton.cloneNode()
+                    // newDiv.className = 'myCommentBtn';
+                    // overlayButton.style.visibility = 'hidden';             
+                    // iframe.parentElement.insertBefore(newDiv, iframe)
+                    // newDiv.addEventListener("click", (e) => {
+                    //     e.preventDefault();
+                    //     e.stopPropagation();
+                    //     e.stopImmediatePropagation();
+                    //     let timeStr = new Date(newYTEl.getCurrentTime() * 1000).toISOString().substring(11, 19)
+                    //     fillTheBlock("{{[[ccc-yt-timestamp]]:" + timeStr + "((" + playing.getIframe().id.slice(-9) + "))}}");
+                    //     return false;
+                    // });
                 }
-                addTimestampControls(block, players.get(frameId), newIframe);
             });
-    };
-
-    const addTimestampControls = (block, player, newIframe) => {
-        if (block.children.length < 2) return null;
-        const childBlocks = Array.from(block.children[1].querySelectorAll('.rm-block__input'));
-        childBlocks.forEach(child => {
-            if (!child.classList.contains('timestamp-observed') || newIframe) {
-                const timestamp = getTimestamp(child);
-                const buttonIfPresent = getControlButton(child);
-                const timestampChanged = buttonIfPresent !== null && timestamp != buttonIfPresent.dataset.timestamp;
-                if (buttonIfPresent !== null && (timestamp === null || timestampChanged || newIframe)) {
-                    buttonIfPresent.remove();
-                }
-                if (timestamp !== null && ((buttonIfPresent === null || timestampChanged || newIframe))) {
-                    addControlButton(child, timestamp, () => player.seekTo(timestamp, true));
-                }
-                child.classList.add('timestamp-observed')
-            }
-        });
-    };
-
-
-    const getControlButton = (block) => block.parentElement.querySelector('.timestamp-control');
-
-    const addControlButton = (block, timestamp, fn) => {
-        const button = document.createElement('button');
-        button.innerText = '►';
-        button.classList.add('timestamp-control');
-        button.dataset.timestamp = timestamp;
-        // button.style.borderRadius = '50%';
-        button.addEventListener('click', fn);
-        block.parentElement.insertBefore(button, block);
-    };
-
-    const getTimestamp = (block) => {
-        var myspan = block.querySelector('span')
-        if (myspan === null) return null;
-        const blockText = myspan.textContent;
-        const matches = blockText.match(/^((?:\d+:)?\d+:\d\d)\D/); // start w/ m:ss or h:mm:ss
-        if (!matches || matches.length < 2) return null;
-        const timeParts = matches[1].split(':').map(part => parseInt(part));
-        if (timeParts.length == 3) return timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
-        else if (timeParts.length == 2) return timeParts[0] * 60 + timeParts[1];
-        else return null;
+        return;
     };
 
     const extractVideoID = (url) => {
-        var regExp = /^(https?:\/\/)?((www\.)?(youtube(-nocookie)?|youtube.googleapis)\.com.*(v\/|v=|vi=|vi\/|e\/|embed\/\/?|user\/.*\/u\/\d+\/)|youtu\.be\/)([_0-9a-z-]+)/i;
-        var match = url.match(regExp);
+        let regExp = /^(https?:\/\/)?((www\.)?(youtube(-nocookie)?|youtube.googleapis)\.com.*(v\/|v=|vi=|vi\/|e\/|embed\/\/?|user\/.*\/u\/\d+\/)|youtu\.be\/)([_0-9a-z-]+)/i;
+        let match = url.match(regExp);
         if (match && match[7].length == 11) {
             return match[7];
         } else {
@@ -503,25 +550,69 @@ function startC3YtExtension() {
 }
 
 
-// function activateNewTimeStamp(mutations) {
-//     // for (let mutation of mutations) {
-//     //     for (let node of mutation.addedNodes) {
-//     //         const btn = node.querySelector('.rm-xparser-default-ccc-yt-timestamp')
-//     //         if (btn) {
-//     //             const blockContainer = btn.closest('.rm-block__input')
-//     //             const blockUid = blockContainer.id.slice(-9)
-//     //             const btnBlockTxt = blockString(blockUid)
-//     //             const match = btnBlockTxt.match(/{{\[\[ccc\-yt\-timestamp\]\]\:(.*)}}/)
-//     //             btn.parentElement.insertBefore(btn, )
-//     //             if (match && match[1]) {
-//     //                 btn.innerHTML = match[1];
-//     //             }
-//     //             btn.classList.add('timestamp-control');
-//     //         }
-//     //     }
-//     // }
-// }
+function activateNewTimeStamp(mutations) {
+    for (let mutation of mutations) {
+        for (let node of mutation.addedNodes) {
+            if (node.nodeType === 1) { //check if this is an element (not text/char)
+                const btns = node.querySelectorAll('.rm-xparser-default-ccc-yt-timestamp')
+                for (let btn of btns) {
+                    const blockRefSpan = btn.closest('.rm-block-ref')
+                    let blockUid;
+                    if (!blockRefSpan) { //main
+                        blockUid = btn.closest('.rm-block__input').id.slice(-9)
+                    } else { //ref
+                        blockUid = blockRefSpan.dataset.uid
+                    }
+                    const btnBlockTxt = blockString(blockUid)
 
+                    const match = btnBlockTxt.match(/{{\[\[ccc\-yt\-timestamp\]\]\:(.*)\(\((.*)\)\)}}/)
+                    if (match && match[1]) {
+                        btn.innerHTML = match[1];
+                        btn.addEventListener("click", (e) => { tsClick(e, match[1], match[2]) });
+                    }
+                    btn.classList.add('timestamp-control');
+                }
+            }
+        }
+        for (let node of mutation.removedNodes) {
+            if (node.nodeType === 1) {
+                const ytIframe = node.querySelector('iframe[id^="yt-"]') //iframe is closed remove it from players list
+                if (ytIframe)
+                    players.delete(ytIframe.id.slice(-9))
+            }
+        }
+
+    }
+}
+
+
+
+function openBlockInSidebar(windowType, blockUid) {
+    return window.roamAlphaAPI.ui.rightSidebar.addWindow({ window: { type: windowType, 'block-uid': blockUid } })
+}
+
+async function tsClick(e, tsString, ytUid) {
+    e.stopPropagation()
+    let ts = 0;
+    const matches = tsString.match(/(\d\d)\:(\d\d)\:(\d\d)/); // start w/ m:ss or h:mm:ss
+    if (!matches || matches.length < 4) {
+        ts = 0;
+    } else {
+        ts = parseInt(matches[1]) * 3600 + parseInt(matches[2]) * 60 + parseInt(matches[3]);
+    }
+    let player = players.get(ytUid)
+    if (!player) {
+        await openBlockInSidebar('block', ytUid)
+        await sleep(1500);
+    }
+    player = players.get(ytUid)
+    let playing = whatIsPlaying();
+    if (playing && playing != player)
+        playing.pauseVideo();
+
+    player.seekTo(ts, true)
+    player.playVideo();
+}
 
 function setSettingDefault(extensionAPI, settingId, settingDefault) {
     let storedSetting = extensionAPI.settings.get(settingId);
@@ -529,9 +620,13 @@ function setSettingDefault(extensionAPI, settingId, settingDefault) {
     return storedSetting || settingDefault;
 }
 
+let tsObserver;
 function onload({ extensionAPI }) {
     // console.log('loading')
-    
+
+    tsObserver = new MutationObserver(activateNewTimeStamp)
+    tsObserver.observe(document.getElementById('app'), { subtree: true, childList: true })
+
     ytParams.grabTitleKey = setSettingDefault(extensionAPI, 'grabTitleKey', 'alt+a t');
     ytParams.grabTimeKey = setSettingDefault(extensionAPI, 'grabTimeKey', 'alt+a n');
     ytParams.normalSpeedKey = setSettingDefault(extensionAPI, 'normalSpeedKey', 'alt+a 0');
@@ -543,6 +638,9 @@ function onload({ extensionAPI }) {
     ytParams.playPauseKey = setSettingDefault(extensionAPI, 'playPauseKey', 'alt+a p');
     ytParams.backwardKey = setSettingDefault(extensionAPI, 'backwardKey', 'alt+a j');
     ytParams.forwardKey = setSettingDefault(extensionAPI, 'forwardKey', 'alt+a l');
+    ytParams.playFromTsKey = setSettingDefault(extensionAPI, 'playFromTsKey', 'alt+a ,');
+    // ytParams.screenshotKey = setSettingDefault(extensionAPI, 'screenshotKey', 'alt+a s');
+
     extensionAPI.settings.panel.create(panelConfig);
 
     startC3YtExtension();
@@ -551,6 +649,8 @@ function onload({ extensionAPI }) {
 
 function onunload() {
     // console.log('unloading')
+    tsObserver.disconnect();
+
     unbindShortkeys();
     for (const f of onunloadfns) {
         // console.log(f);
