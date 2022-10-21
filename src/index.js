@@ -7,7 +7,7 @@ import Mousetrap from 'mousetrap';
 let ytParams = {};
 
 const panelConfig = {
-    tabTitle: "CCC YouTube Timestamp with Player Control",
+    tabTitle: "CCC YouTube Timestamp",
     settings: [
         {
             id: "grabTitleKey",
