@@ -1,3 +1,4 @@
+# After Updating Shortkeys You Must Reload Your Graph
 
 # YouTube Timestamp 
 You can add timestamps while typing using a shortcut. 
@@ -7,6 +8,8 @@ You can add timestamps while typing using a shortcut.
   - Time Stamp Shortkey: It captures the player's current time and pastes it to the beginning of the block. If you press it multiple times, it updates the old timestamp with the current time. 
 
 - **YouTube Demo**
+	- Newest demo
+	- [![timestamp](https://img.youtube.com/vi/g9r8uSQY760/0.jpg)](https://www.youtube.com/watch?v=g9r8uSQY760)
     - Note: this is for an older version of the extension with a slightly different functionality and UI. 
 	- [![timestamp](https://img.youtube.com/vi/Kgo_Lkw-2CA/0.jpg)](https://www.youtube.com/watch?v=Kgo_Lkw-2CA&ab_channel=ConnectedCognitionCrumbs)
 
